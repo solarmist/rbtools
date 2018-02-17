@@ -33,6 +33,7 @@ from rbtools.api.cache import APICache
 from rbtools.api.errors import APIError, create_api_error, ServerInterfaceError
 from rbtools.utils.filesystem import get_home_path
 
+
 # Python 2.7.9+ added strict HTTPS certificate validation (finally). These APIs
 # don't exist everywhere so soft-import them.
 try:

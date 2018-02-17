@@ -2,10 +2,11 @@ from __future__ import print_function, unicode_literals
 
 import argparse
 import os
-import pkg_resources
 import signal
 import subprocess
 import sys
+
+import pkg_resources
 
 from rbtools import get_version_string
 from rbtools.commands import find_entry_point_for_command, Option, RB_MAIN
