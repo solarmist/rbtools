@@ -309,24 +309,24 @@ class PerforceClient(SCMClient):
     def parse_revision_spec(self, revisions=[]):
         """Parses the given revision spec.
 
-        The 'revisions' argument is a list of revisions as specified by the
+        The "revisions" argument is a list of revisions as specified by the
         user. Items in the list do not necessarily represent a single revision,
         since the user can use SCM-native syntaxes such as "r1..r2" or "r1:r2".
         SCMTool-specific overrides of this method are expected to deal with
         such syntaxes.
 
         This will return a dictionary with the following keys:
-            'base':        A revision to use as the base of the resulting diff.
-            'tip':         A revision to use as the tip of the resulting diff.
+            "base":        A revision to use as the base of the resulting diff.
+            "tip":         A revision to use as the tip of the resulting diff.
 
         These will be used to generate the diffs to upload to Review Board (or
         print). The diff for review will include the changes in (base, tip].
 
-        If zero revisions are passed in, this will return the 'default'
+        If zero revisions are passed in, this will return the "default"
         changelist.
 
         If a single revision is passed in, this will return the parent of that
-        revision for 'base' and the passed-in revision for 'tip'. The result
+        revision for "base" and the passed-in revision for "tip". The result
         may have special internal revisions or prefixes based on whether the
         changeset is submitted, pending, or shelved.
 
@@ -350,7 +350,7 @@ class PerforceClient(SCMClient):
 
             # Both pending and shelved changes are treated as "pending",
             # through the same code path. This is because the documentation for
-            # 'p4 change' tells a filthy lie, saying that shelved changes will
+            # "p4 change" tells a filthy lie, saying that shelved changes will
             # have their status listed as shelved. In fact, when you shelve
             # changes, it sticks the data up on the server, but leaves your
             # working copy intact, and the change is still marked as pending.

@@ -70,8 +70,8 @@ class CVSClient(SCMClient):
         such syntaxes.
 
         This will return a dictionary with the following keys:
-            'base':        A revision to use as the base of the resulting diff.
-            'tip':         A revision to use as the tip of the resulting diff.
+            "base":        A revision to use as the base of the resulting diff.
+            "tip":         A revision to use as the tip of the resulting diff.
 
         These will be used to generate the diffs to upload to Review Board (or
         print). The diff for review will include the changes in (base, tip].
@@ -88,7 +88,7 @@ class CVSClient(SCMClient):
         is specific to each SCMTool backend, and documented in the
         implementation classes.
 
-        The CVS SCMClient never fills in the 'parent_base' key. Users who are
+        The CVS SCMClient never fills in the "parent_base" key. Users who are
         using other patch-stack tools who want to use parent diffs with CVS
         will have to generate their diffs by hand.
 

@@ -60,15 +60,15 @@ class PlasticClient(SCMClient):
     def parse_revision_spec(self, revisions=[]):
         """Parse the given revision spec.
 
-        The 'revisions' argument is a list of revisions as specified by the
+        The "revisions" argument is a list of revisions as specified by the
         user. Items in the list do not necessarily represent a single revision,
         since the user can use SCM-native syntaxes such as "r1..r2" or "r1:r2".
         SCMTool-specific overrides of this method are expected to deal with
         such syntaxes.
 
         This will return a dictionary with the following keys:
-            'base': Always None.
-            'tip':  A revision string representing either a changeset or a
+            "base": Always None.
+            "tip":  A revision string representing either a changeset or a
                     branch.
 
         These will be used to generate the diffs to upload to Review Board (or

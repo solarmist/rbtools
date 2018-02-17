@@ -337,7 +337,7 @@ class ResourceTests(TestWithPayloads):
             mime_type='application/vnd.reviewboard.org.root+json')
 
         for template_name in self.root_payload['uri_templates']:
-            method_name = "get_%s" % template_name
+            method_name = 'get_%s' % template_name
             self.assertTrue(hasattr(r, method_name))
             self.assertTrue(callable(getattr(r, method_name)))
 

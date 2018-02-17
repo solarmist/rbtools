@@ -23,7 +23,7 @@ from rbtools.utils.process import execute
 class GitClientTests(SpyAgency, SCMClientTests):
     """Unit tests for GitClient."""
 
-    TESTSERVER = "http://127.0.0.1:8080"
+    TESTSERVER = 'http://127.0.0.1:8080'
     AUTHOR = type(
         str('Author'),
         (object,),
@@ -78,7 +78,7 @@ class GitClientTests(SpyAgency, SCMClientTests):
         ri = self.client.get_repository_info()
         self.assertTrue(isinstance(ri, RepositoryInfo))
         self.assertEqual(ri.base_path, '')
-        self.assertEqual(ri.path.rstrip("/.git"), self.git_dir)
+        self.assertEqual(ri.path.rstrip('/.git'), self.git_dir)
         self.assertTrue(ri.supports_parent_diffs)
         self.assertFalse(ri.supports_changesets)
 

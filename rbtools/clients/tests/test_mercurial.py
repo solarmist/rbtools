@@ -587,19 +587,19 @@ class MercurialSubversionClientTests(MercurialTestBase):
         _calculate_hgsubversion_repository_info properly determines repository
         and base paths"""
         info = (
-            "URL: svn+ssh://testuser@svn.example.net/repo/trunk\n"
-            "Repository Root: svn+ssh://testuser@svn.example.net/repo\n"
-            "Repository UUID: bfddb570-5023-0410-9bc8-bc1659bf7c01\n"
-            "Revision: 9999\n"
-            "Node Kind: directory\n"
-            "Last Changed Author: user\n"
-            "Last Changed Rev: 9999\n"
-            "Last Changed Date: 2012-09-05 18:04:28 +0000 (Wed, 05 Sep 2012)")
+            'URL: svn+ssh://testuser@svn.example.net/repo/trunk\n'
+            'Repository Root: svn+ssh://testuser@svn.example.net/repo\n'
+            'Repository UUID: bfddb570-5023-0410-9bc8-bc1659bf7c01\n'
+            'Revision: 9999\n'
+            'Node Kind: directory\n'
+            'Last Changed Author: user\n'
+            'Last Changed Rev: 9999\n'
+            'Last Changed Date: 2012-09-05 18:04:28 +0000 (Wed, 05 Sep 2012)')
 
         repo_info = self.client._calculate_hgsubversion_repository_info(info)
 
-        self.assertEqual(repo_info.path, "svn+ssh://svn.example.net/repo")
-        self.assertEqual(repo_info.base_path, "/trunk")
+        self.assertEqual(repo_info.path, 'svn+ssh://svn.example.net/repo')
+        self.assertEqual(repo_info.base_path, '/trunk')
 
     def testScanForServerSimple(self):
         """Testing MercurialClient (+svn) scan_for_server, simple case"""
