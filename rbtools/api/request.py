@@ -7,7 +7,7 @@ import os
 import random
 import shutil
 import sys
-from io import BytesIO
+from itertools import chain
 from json import loads as json_loads
 
 import six
@@ -94,55 +94,66 @@ class HttpRequest(object):
             files  - the files to be encoded.  This should be a dict in a
                      key:dict, filename:value and content:value format
         """
+        NEWLINE = b'\r\n'
+        # This must be the same for all parts of this block
+        boundary_value = self._make_mime_boundary()
+        DASH_BOUNDARY = b'-' * 2 + boundary_value
+        CLOSE_BOUNDARY = NEWLINE + DASH_BOUNDARY + b'-' * 2
+
+        def binary_encode(value):
+            if not isinstance(value, six.binary_type):
+                # Works for numbers and Unicode
+                value = six.text_type(value).encode('utf-8')
+            return value
+
+        def multipart_body(name, body_part, filename=None):
+            """
+            if filename is set then we expect mimetype to also be set
+            # Format of Internet Message Bodies
+            https://www.ietf.org/rfc/rfc2045.txt
+            # Media Types
+            https://tools.ietf.org/html/rfc2046#section-5.1
+            # Content-Disposition
+            https://tools.ietf.org/html/rfc2183#section-2.3
+            # multipart/form-data
+            https://tools.ietf.org/html/rfc7578#page-4
+            """
+            encapsulation = NEWLINE + DASH_BOUNDARY + NEWLINE
+            encapsulation += b'Content-Disposition: '
+            # name should only be 7-bit ascii
+            encapsulation += b'form-data ; name="%s"; ' % binary_encode(name)
+            if filename:
+                encapsulation += b'; filename=%s' % binary_encode(filename)
+                mime_type, encoding = mimetypes.guess_type(filename)
+                if not mime_type:
+                    mime_type = b'application/octet-stream'
+
+                # Without this it is assumed to be US-ASCII
+                encapsulation += (NEWLINE + b'Content-Type: %s' %
+                                  binary_encode(mime_type))
+
+            encapsulation += NEWLINE * 2 + binary_encode(body_part)
+
+            # End with a second NEWLINE
+            return encapsulation
+
         if not (self._fields or self._files):
             return None, None
 
-        NEWLINE = b'\r\n'
-        BOUNDARY = self._make_mime_boundary()
-        content = BytesIO()
+        content_type = b'multipart/form-data; boundary=%s' % boundary_value
+        content = six.BytesIO()
 
-        for key in self._fields:
-            content.write(b'--' + BOUNDARY + NEWLINE)
-            content.write(b'Content-Disposition: form-data; '
-                          b'name="%s"' % key.encode('utf-8'))
-            content.write(NEWLINE + NEWLINE)
+        for name, value in chain(self._fields.items(), self._files.items()):
+            filename = None
+            data = value
+            if isinstance(value, dict):
+                if 'filename' in value:
+                    filename = value['filename']
+                if 'content' in value:
+                    data = value['content']
 
-            if isinstance(self._fields[key], six.binary_type):
-                content.write(self._fields[key] + NEWLINE)
-            else:
-                content.write(six.text_type(
-                    self._fields[key]).encode('utf-8') +
-                    NEWLINE)
-
-        for key in self._files:
-            filename = self._files[key]['filename']
-            value = self._files[key]['content']
-
-            mime_type = mimetypes.guess_type(filename)[0]
-            if mime_type:
-                mime_type = mime_type.encode('utf-8')
-            else:
-                mime_type = b'application/octet-stream'
-
-            content.write(b'--' + BOUNDARY + NEWLINE)
-            content.write(b'Content-Disposition: form-data; name="%s"; '
-                          % key.encode('utf-8'))
-            content.write(b'filename="%s"'
-                          % filename.encode('utf-8') + NEWLINE)
-            content.write(b'Content-Type: %s' % mime_type + NEWLINE)
-            content.write(NEWLINE)
-
-            if isinstance(value, six.text_type):
-                content.write(value.encode('utf-8'))
-            else:
-                content.write(value)
-
-            content.write(NEWLINE)
-
-        content.write(b'--' + BOUNDARY + b'--' + NEWLINE + NEWLINE)
-        content_type = ('multipart/form-data; boundary=%s'
-                        % BOUNDARY.decode('utf-8'))
-
+            content.write(multipart_body(name, data, filename))
+        content.write(CLOSE_BOUNDARY)
         return content_type, content.getvalue()
 
     def _make_mime_boundary(self):
@@ -154,7 +165,8 @@ class HttpRequest(object):
         """
         fmt = '%%0%dd' % len(repr(sys.maxsize - 1))
         token = random.randrange(sys.maxsize)
-        return (b'=' * 15) + (fmt % token).encode('utf-8') + b'=='
+        boundary = '=' * 15 + fmt % token + '=='
+        return boundary.encode()
 
 
 class Request(URLRequest):
@@ -194,11 +206,9 @@ class PresetHTTPAuthHandler(BaseHandler):
                 # username and password we're working with.
                 username, password = \
                     self.password_mgr.find_user_password('Web API', self.url)
-                raw = '%s:%s' % (username, password)
-                header = (b'Basic %s'
-                          % base64.b64encode(raw.encode('utf-8')).strip())
-
-                request.add_header(self.AUTH_HEADER, header.decode('utf-8'))
+                raw = '{}:{}'.format(username, password).encode()
+                request.add_header(self.AUTH_HEADER, 'Basic ' +
+                                   base64.b64encode(raw).decode('ascii'))
                 self.used = True
 
         return request
@@ -207,20 +217,12 @@ class PresetHTTPAuthHandler(BaseHandler):
 
 
 class ReviewBoardHTTPErrorProcessor(HTTPErrorProcessor):
-    """Processes HTTP error codes.
-
-    Python 2.6 gets HTTP error code processing right, but 2.4 and 2.5 only
-    accepts HTTP 200 and 206 as success codes. This handler ensures that
-    anything in the 200 range, as well as 304, is a success.
-    """
+    """Processes HTTP error codes."""
     def http_response(self, request, response):
-        if not (200 <= response.code < 300 or
-                response.code == NOT_MODIFIED):
-            response = self.parent.error('http', request, response,
-                                         response.code, response.msg,
-                                         response.info())
-
-        return response
+        if response.code == NOT_MODIFIED:
+            return response
+        return super(ReviewBoardHTTPErrorProcessor, self).http_response(
+            request, response)
 
     https_response = http_response
 
@@ -273,8 +275,8 @@ class ReviewBoardHTTPBasicAuthHandler(HTTPBasicAuthHandler):
         if password is None:
             return None
 
-        raw = '%s:%s' % (user, password)
-        auth = b'Basic %s' % base64.b64encode(raw.encode('utf-8')).strip()
+        raw = '{}:{}'.format(user, password).encode()
+        auth = 'Basic ' + base64.b64encode(raw).decode('ascii')
 
         if (request.headers.get(self.auth_header, None) == auth and
             (not self._needs_otp_token or
@@ -511,7 +513,7 @@ class ReviewBoardServer(object):
         if agent:
             self.agent = agent
         else:
-            self.agent = ('RBTools/' + get_package_version()).encode('utf-8')
+            self.agent = 'RBTools/' + get_package_version()
 
         opener = build_opener(*handlers)
         opener.addheaders = [
@@ -580,7 +582,7 @@ class ReviewBoardServer(object):
             if body:
                 headers.update({
                     'Content-Type': content_type,
-                    'Content-Length': str(len(body)),
+                    'Content-Length': len(body),
                 })
             else:
                 headers['Content-Length'] = '0'

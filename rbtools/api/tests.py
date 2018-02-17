@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
 
+import cgi
 import datetime
 import locale
-import re
 
 import six
 from six.moves import range
@@ -392,26 +392,17 @@ class HttpRequestTests(TestCase):
 
     def _get_fields_as_dict(self, ctype, content):
         """Extract the fields of a HTTP multipart request as a dictionary."""
-        m = re.match('^multipart/form-data; boundary=(.*)$', ctype)
-        self.assertFalse(m is None)
-        boundary = b'--' + m.group(1).encode('utf-8')
-        fields = [l.strip() for l in content.split(boundary)][1:-1]
+        data = six.BytesIO()
+        boundary = str(ctype)[:-1].split('=', 1)[1].encode()
+        data.write(content)
+        data.seek(0)
+        fields = cgi.parse_multipart(
+            data, {'CONTENT-LENGTH': len(content), 'boundary': boundary})
 
-        d = {}
+        for field, value in fields.items():
+            fields[field] = value.pop()
 
-        disposition_re = re.compile(
-            b'Content-Disposition: form-data; name="(.*?)"$')
-
-        for f in fields:
-            lst = f.split(b'\r\n\r\n')
-            self.assertEqual(len(lst), 2)
-            k, v = lst
-
-            m = disposition_re.match(k)
-            self.assertFalse(m is None)
-            d[m.group(1)] = v
-
-        return d
+        return fields
 
     def test_post_form_data(self):
         """Testing the multipart form data generation"""
@@ -420,14 +411,16 @@ class HttpRequestTests(TestCase):
         request.add_field('bar', 42)
         request.add_field('err', 'must-be-deleted')
         request.add_field('name', 'somestring')
+        request.add_field('path', {'filename': 'diff',
+                                   'content': 'This is a file.'})
         request.del_field('err')
 
         ctype, content = request.encode_multipart_formdata()
-
-        d = self._get_fields_as_dict(ctype, content)
+        fields = self._get_fields_as_dict(ctype, content)
 
         self.assertEqual(
-            d, {b'foo': b'bar', b'bar': b'42', b'name': b'somestring'})
+            fields, {'foo': b'bar', 'bar': b'42', 'name': b'somestring',
+                     'path': b'This is a file.'})
 
     def test_post_unicode_data(self):
         """Testing the encoding of multipart form data with unicode and binary
@@ -441,13 +434,12 @@ class HttpRequestTests(TestCase):
         request.add_field('baz', b'\xff')
 
         ctype, content = request.encode_multipart_formdata()
-
         fields = self._get_fields_as_dict(ctype, content)
 
-        self.assertTrue(b'foo' in fields)
-        self.assertEqual(fields[b'foo'], konnichiwa.encode('utf-8'))
-        self.assertEqual(fields[b'bar'], konnichiwa.encode('utf-8'))
-        self.assertEqual(fields[b'baz'], b'\xff')
+        self.assertTrue('foo' in fields)
+        self.assertEqual(fields['foo'], konnichiwa.encode('utf-8'))
+        self.assertEqual(fields['bar'], konnichiwa.encode('utf-8'))
+        self.assertEqual(fields['baz'], b'\xff')
 
 
 class ReviewRequestResourceTests(TestCase):
