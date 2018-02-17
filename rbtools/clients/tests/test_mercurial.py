@@ -25,14 +25,13 @@ class MercurialTestBase(SCMClientTests):
     """Base class for all Mercurial unit tests."""
 
     def setUp(self):
-        super(MercurialTestBase, self).setUp()
-        self._hg_env = {}
-
         if six.PY3:
             # Mercurial is working on Python 3 support but it's still quite
             # broken, especially with any out-of-core extensions installed
             # (like hgsubversion). Just skip it for now.
             raise SkipTest
+        super(MercurialTestBase, self).setUp()
+        self._hg_env = {}
 
     def _run_hg(self, command, ignore_errors=False, extra_ignore_errors=()):
         # We're *not* doing `env = env or {}` here because
@@ -528,7 +527,7 @@ class MercurialSubversionClientTests(MercurialTestBase):
             self._svnserve_port = str(randint(30000, 40000))
 
         pid_file = os.path.join(self._tmpbase, 'svnserve.pid')
-        execute(['svnserve', '--pid-file', pid_file, '-d',
+        execute(['svnserve', '--single-thread', '--pid-file', pid_file, '-d',
                  '--listen-port', self._svnserve_port, '-r', self._tmpbase])
 
         for i in range(0, self._max_svnserve_pid_tries):

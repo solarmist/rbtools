@@ -59,19 +59,18 @@ class GitClientTests(SpyAgency, SCMClientTests):
         return self._run_git(['rev-parse', 'HEAD']).strip()
 
     def setUp(self):
-        super(GitClientTests, self).setUp()
-
         if not is_exe_in_path('git'):
             raise SkipTest('git not found in path')
+        super(GitClientTests, self).setUp()
 
-        self.set_user_home(
-            os.path.join(self.testdata_dir, 'homedir'))
         self.git_dir = os.path.join(self.testdata_dir, 'git-repo')
 
         self.clone_dir = self.chdir_tmp()
         self._run_git(['clone', self.git_dir, self.clone_dir])
         self.client = GitClient(options=self.options)
 
+        # This is only used when calling client.parse_revision_spec() with
+        # no revisions.
         self.options.parent_branch = None
 
     def test_get_repository_info_simple(self):

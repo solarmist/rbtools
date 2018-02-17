@@ -12,10 +12,15 @@ class SCMClientTests(RBTestBase):
     """Base class for RBTools client unit tests."""
 
     def setUp(self):
-        super(SCMClientTests, self).setUp()
-
         self.options = OptionsStub()
-        self.testdata_dir = os.path.join(os.path.dirname(__file__), 'testdata')
+
+        self.testdata_dir = os.path.join(os.path.dirname(__file__),
+                                         'testdata')
+
+        # Override RBTestBase and move home to where our
+        # test configs are stored.
+        self.set_user_home(os.path.join(self.testdata_dir,
+                                        'homedir'))
 
 
 FOO = b"""\

@@ -14,27 +14,38 @@ from rbtools.utils.filesystem import cleanup_tempfiles, make_tempdir
 from rbtools.testing import TestCase
 
 
+# Immediately store the user's home directory so there's a always a valid
+# directory to return to.
+OLD_HOMES = [os.environ['HOME']]
+
+
 class RBTestBase(TestCase):
     """Base class for RBTools tests.
 
     Its side effect in that it change home directory before test suit will
     run. This is because RBTools actively works with files and almost all
-    tests employ file I/O operations."""
+    tests employ file I/O operations.
+    """
+
     def setUp(self):
-        self._old_cwd = os.getcwd()
+        # Move the user's home directory out the way so we don't
+        # accidentally make changes there
         self.set_user_home_tmp()
 
     def tearDown(self):
-        os.chdir(self._old_cwd)
+        try:
+            self.revert_user_home()
+        except OSError:
+            self.reset_user_home()
         cleanup_tempfiles()
 
     def create_tmp_dir(self):
         """Creates and returns a temporary directory."""
         return make_tempdir()
 
-    def chdir_tmp(self, dir=None):
+    def chdir_tmp(self, temp_dir=None):
         """Changes current directory to a temporary directory."""
-        dirname = make_tempdir(parent=dir)
+        dirname = make_tempdir(parent=temp_dir)
         os.chdir(dirname)
         return dirname
 
@@ -54,8 +65,33 @@ class RBTestBase(TestCase):
         """
         sys.argv = values
 
+    def reset_user_home(self):
+        """Reset the user's home directory.
+
+        Reset the user's home to the known safe home directory.
+        """
+        os.environ['HOME'] = OLD_HOMES[0]
+        os.chdir(os.environ['HOME'])
+
+    def revert_user_home(self):
+        """Revert the user's home directory.
+
+        Revert the home directory to what it was when this set of tests
+        started.
+        """
+        global OLD_HOMES
+
+        os.environ['HOME'] = OLD_HOMES.pop()
+        # Ensure there's always a safe home to return to
+        if not OLD_HOMES:
+            OLD_HOMES.append(os.environ['HOME'])
+        os.chdir(os.environ['HOME'])
+
     def set_user_home(self, path):
         """Set home directory of current user."""
+        global OLD_HOMES
+
+        OLD_HOMES.append(os.environ['HOME'])
         os.environ['HOME'] = path
 
     def set_user_home_tmp(self):

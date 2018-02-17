@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python -3 -bb
+# -b     : issue warnings about str(bytes_instance), str(bytearray_instance)
+#          and comparing bytes/bytearray with str. (-bb: issue errors)
+# -3     : warn about Python 3.x incompatibilities that 2to3 cannot trivially
+#          fix
 
 from __future__ import unicode_literals
 

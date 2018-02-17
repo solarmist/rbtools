@@ -4,7 +4,6 @@ from __future__ import unicode_literals
 
 import os
 from hashlib import md5
-from tempfile import mktemp
 
 from nose import SkipTest
 
@@ -20,26 +19,21 @@ class BazaarClientTests(SCMClientTests):
     """Unit tests for BazaarClient."""
 
     def setUp(self):
-        super(BazaarClientTests, self).setUp()
-
+        # This should come before the call to super to prevent
+        # unbalanced calls to setUp/tearDown
         if not is_exe_in_path('bzr'):
             raise SkipTest('bzr not found in path')
-
-        self.set_user_home(
-            os.path.join(self.testdata_dir, 'homedir'))
-
-        self.orig_dir = os.getcwd()
+        super(BazaarClientTests, self).setUp()
 
         self.original_branch = self.chdir_tmp()
+        self.child_branch = self.create_tmp_dir()
+
         self._run_bzr(["init", "."])
         self._bzr_add_file_commit("foo.txt", FOO, "initial commit")
-
-        self.child_branch = mktemp()
         self._run_bzr(["branch", "--use-existing-dir", self.original_branch,
                        self.child_branch])
-        self.client = BazaarClient(options=self.options)
-        os.chdir(self.orig_dir)
 
+        self.client = BazaarClient(options=self.options)
         self.options.parent_branch = None
 
     def _run_bzr(self, command, *args, **kwargs):
@@ -228,7 +222,7 @@ class BazaarClientTests(SCMClientTests):
         os.chdir(self.child_branch)
         self._bzr_add_file_commit("foo.txt", FOO1, "delete and modify stuff")
 
-        grand_child_branch = mktemp()
+        grand_child_branch = self.create_tmp_dir()
         self._run_bzr(["branch", "--use-existing-dir", self.child_branch,
                        grand_child_branch])
         os.chdir(grand_child_branch)
@@ -246,7 +240,7 @@ class BazaarClientTests(SCMClientTests):
         os.chdir(self.child_branch)
         self._bzr_add_file_commit("foo.txt", FOO1, "delete and modify stuff")
 
-        grand_child_branch = mktemp()
+        grand_child_branch = self.create_tmp_dir()
         self._run_bzr(["branch", "--use-existing-dir", self.child_branch,
                        grand_child_branch])
         os.chdir(grand_child_branch)
@@ -295,7 +289,7 @@ class BazaarClientTests(SCMClientTests):
         self.options.guess_summary = True
         self.options.guess_description = True
 
-        grand_child_branch = mktemp()
+        grand_child_branch = self.create_tmp_dir()
         self._run_bzr(["branch", "--use-existing-dir", self.child_branch,
                        grand_child_branch])
         os.chdir(grand_child_branch)
@@ -371,7 +365,7 @@ class BazaarClientTests(SCMClientTests):
         os.chdir(self.original_branch)
         parent_base_commit_id = self.client._get_revno()
 
-        grand_child_branch = mktemp()
+        grand_child_branch = self.create_tmp_dir()
         self._run_bzr(["branch", "--use-existing-dir", self.child_branch,
                        grand_child_branch])
         os.chdir(grand_child_branch)
