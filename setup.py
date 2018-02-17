@@ -33,14 +33,6 @@ from rbtools import get_package_version, is_release, VERSION
 
 
 PACKAGE_NAME = 'RBTools'
-
-if is_release():
-    download_url = "http://downloads.reviewboard.org/releases/%s/%s.%s/" % \
-                   (PACKAGE_NAME, VERSION[0], VERSION[1])
-else:
-    download_url = "http://downloads.reviewboard.org/nightlies/"
-
-
 install_requires = [
     'backports.shutil_get_terminal_size',
     'colorama',
@@ -103,6 +95,9 @@ scm_clients = [
     'svn = rbtools.clients.svn:SVNClient',
     'tfs = rbtools.clients.tfs:TFSClient',
 ]
+
+download_url = "https://downloads.reviewboard.org/releases/%s/%s.%s/" % \
+                   (PACKAGE_NAME, VERSION[0], VERSION[1])
 
 setup(name=PACKAGE_NAME,
       version=get_package_version(),
