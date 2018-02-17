@@ -65,7 +65,11 @@ elif sys.hexversion < 0x02060000:
         '2.6.x (preferably 2.7).\n' % get_package_version())
     sys.exit(1)
 elif sys.hexversion < 0x02070000:
-    install_requires.append('argparse')
+    sys.stderr.write(
+        'RBTools %s is incompatible with your version of Python.\n'
+        'Please install RBTools 0.7.x or upgrade Python to at least '
+        '2.7.x.\n' % get_package_version())
+    sys.exit(1)
 
 
 rb_commands = [

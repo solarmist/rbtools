@@ -30,6 +30,7 @@ See the
 [RBTools documentation](https://www.reviewboard.org/docs/rbtools/latest/) for
 more information.
 
+Note: For Python 3.6+ on macOS you may need to install `certifi` and run /Applications/Python\ 3.6/Install\ Certificates.command in order to connect to a https reviewboard instance
 
 Using the Python API
 --------------------

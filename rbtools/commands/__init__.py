@@ -819,11 +819,8 @@ class Command(object):
             print('Please log in to the Review Board server at %s.' %
                   urlparse(uri)[1])
 
-            # getpass will write its prompt to stderr but input
-            # writes to stdout. See bug 2831.
             if username is None:
-                sys.stderr.write('Username: ')
-                username = input()
+                username = input('Username: ')
 
             if password is None:
                 password = getpass.getpass('Password: ')

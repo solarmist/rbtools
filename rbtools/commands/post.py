@@ -472,10 +472,8 @@ class Post(Command):
         else:
             # No review_request_id, so we will create a new review request.
             try:
-                # Until we are Python 2.7+ only, the keys in request_data have
-                # to be bytes. See bug 3753 for details.
                 request_data = {
-                    'repository': repository,
+                    'repository': repository
                 }
 
                 if changenum:

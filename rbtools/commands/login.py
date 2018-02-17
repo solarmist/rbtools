@@ -18,6 +18,7 @@ class Login(Command):
     """
     name = 'login'
     author = 'The Review Board Project'
+    description = 'Logs into a Review Board server.'
     option_list = [
         Command.server_options,
     ]
