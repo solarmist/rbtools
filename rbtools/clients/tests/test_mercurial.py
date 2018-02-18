@@ -25,14 +25,43 @@ from rbtools.utils.process import execute
 class MercurialTestBase(SCMClientTests):
     """Base class for all Mercurial unit tests."""
 
+    SERVER = '127.0.0.1'
+    TESTSERVER = 'http://%s:8080' % SERVER
+    repo = os.path.join(self.testdata_dir, 'hg-repo')
+    _hg_env = {}
+    CLONE_HGRC = dedent("""
+    [ui]
+    username = test user <user at example.com>
+
+    [paths]
+    default = %(hg_dir)s
+    cloned = %(clone_dir)s
+
+    [reviewboard]
+    url = %(test_server)s
+
+    [diff]
+    git = true
+    """).rstrip()
+
+
+
     def setUp(self):
-        if six.PY3:
+        if six.PY3 or not is_exe_in_path('hg'):
             # Mercurial is working on Python 3 support but it's still quite
             # broken, especially with any out-of-core extensions installed
             # (like hgsubversion). Just skip it for now.
-            raise SkipTest
+            raise SkipTest(None if six.PY3 else 'hg not found in path')
         super(MercurialTestBase, self).setUp()
-        self._hg_env = {}
+
+        self.options.parent_branch = None
+        self.base_dir = self.chdir_tmp()
+        self.clone_dir = os.path.join(self.base_dir, 'checkout.hg')
+        self.clone_hgrc_path = os.path.join(self.clone_dir, '.hg', 'hgrc')
+        self._run_hg(['clone', self.repo, self.clone_dir])
+        self.client = MercurialClient(options=self.options)
+
+
 
     def _run_hg(self, command, ignore_errors=False, extra_ignore_errors=()):
         # We're *not* doing `env = env or {}` here because
@@ -61,53 +90,23 @@ class MercurialTestBase(SCMClientTests):
         self._run_hg(['add', filename])
         self._run_hg(['commit', '-m', msg])
 
+    def _hg_get_tip(self):
+        return self._run_hg(['identify']).split()[0]
+
+
 
 class MercurialClientTests(MercurialTestBase):
     """Unit tests for MercurialClient."""
 
-    TESTSERVER = 'http://127.0.0.1:8080'
-    CLONE_HGRC = dedent("""
-    [ui]
-    username = test user <user at example.com>
-
-    [paths]
-    default = %(hg_dir)s
-    cloned = %(clone_dir)s
-
-    [reviewboard]
-    url = %(test_server)s
-
-    [diff]
-    git = true
-    """).rstrip()
-
     def setUp(self):
         super(MercurialClientTests, self).setUp()
-        if not is_exe_in_path('hg'):
-            raise SkipTest('hg not found in path')
 
-        self.hg_dir = os.path.join(self.testdata_dir, 'hg-repo')
-        self.clone_dir = self.chdir_tmp()
-
-        self._run_hg(['clone', self.hg_dir, self.clone_dir])
-        self.client = MercurialClient(options=self.options)
-
-        clone_hgrc = open(self.clone_hgrc_path, 'w')
-        clone_hgrc.write(self.CLONE_HGRC % {
-            'hg_dir': self.hg_dir,
-            'clone_dir': self.clone_dir,
-            'test_server': self.TESTSERVER,
-        })
-        clone_hgrc.close()
-
-        self.options.parent_branch = None
-
-    def _hg_get_tip(self):
-        return self._run_hg(['identify']).split()[0]
-
-    @property
-    def clone_hgrc_path(self):
-        return os.path.join(self.clone_dir, '.hg', 'hgrc')
+        with open(self.clone_hgrc_path, 'w') as clone_hgrc:
+            clone_hgrc.write(self.CLONE_HGRC % {
+                'hg_dir': self.repo,
+                'clone_dir': self.clone_dir,
+                'test_server': self.TESTSERVER,
+            })
 
     def test_get_repository_info_simple(self):
         """Testing MercurialClient get_repository_info, simple case"""
@@ -121,7 +120,7 @@ class MercurialClientTests(MercurialTestBase):
         if os.path.basename(hgpath) == '.hg':
             hgpath = os.path.dirname(hgpath)
 
-        self.assertEqual(self.hg_dir, hgpath)
+        self.assertEqual(self.repo, hgpath)
         self.assertTrue(ri.supports_parent_diffs)
         self.assertFalse(ri.supports_changesets)
 
@@ -441,24 +440,16 @@ class MercurialClientTests(MercurialTestBase):
 class MercurialSubversionClientTests(MercurialTestBase):
     """Unit tests for hgsubversion."""
 
-    TESTSERVER = "http://127.0.0.1:8080"
-
-    def __init__(self, *args, **kwargs):
-        self._tmpbase = ''
-        self.clone_dir = ''
-        self.svn_repo = ''
-        self.svn_checkout = ''
-        self.client = None
-        self._svnserve_pid = 0
-        self._max_svnserve_pid_tries = 12
-        self._svnserve_port = os.environ.get('SVNSERVE_PORT')
-        self._required_exes = ('svnadmin', 'svnserve', 'svn')
-        MercurialTestBase.__init__(self, *args, **kwargs)
+    _hg_env = {'FOO': 'BAR'}
+    svn_repo = os.path.join(self.base_dir, 'svnrepo')
+    svn_checkout = os.path.join(self.base_dir, 'checkout.svn')
+    pid_file = os.path.join(self.base_dir, 'svnserve.pid')
+    _max_svnserve_pid_tries = 12
+    _svnserve_pid = 0
+    _svnserve_port = os.environ.get('SVNSERVE_PORT', randint(30000, 40000))
+    _required_exes = ('svnadmin', 'svnserve', 'svn')
 
     def setUp(self):
-        super(MercurialSubversionClientTests, self).setUp()
-        self._hg_env = {'FOO': 'BAR'}
-
         # Make sure hgsubversion is enabled.
         #
         # This will modify the .hgrc in the temp home directory created
@@ -466,10 +457,10 @@ class MercurialSubversionClientTests(MercurialTestBase):
         #
         # The "hgsubversion =" tells Mercurial to check for hgsubversion
         # in the default PYTHONPATH.
-        fp = open('%s/.hgrc' % os.environ['HOME'], 'w')
-        fp.write('[extensions]\n')
-        fp.write('hgsubversion =\n')
-        fp.close()
+        self.repo = 'svn://%s:%s/svnrepo' % (self.SERVER, self._svnserve_port)
+        with open('%s/.hgrc' % os.environ['HOME'], 'w') as fp:
+            fp.write('[extensions]\n')
+            fp.write('hgsubversion =\n')
 
         for exe in self._required_exes:
             if not is_exe_in_path(exe):
@@ -478,13 +469,12 @@ class MercurialSubversionClientTests(MercurialTestBase):
         if not self._has_hgsubversion():
             raise SkipTest('unable to use `hgsubversion` extension!  '
                            'giving up!')
-
-        if not self._tmpbase:
-            self._tmpbase = self.create_tmp_dir()
-
-        self._create_svn_repo()
+        execute(['svnadmin', 'create', self.svn_repo])
         self._fire_up_svnserve()
         self._fill_in_svn_repo()
+
+        # Initialize repos
+        super(MercurialSubversionClientTests, self).setUp()
 
         try:
             self._get_testing_clone()
@@ -492,8 +482,12 @@ class MercurialSubversionClientTests(MercurialTestBase):
             msg = 'could not clone from svn repo!  skipping...'
             raise SkipTest(msg).with_traceback(sys.exc_info()[2])
 
-        self._spin_up_client()
-        self._stub_in_config_and_options()
+        os.chdir(self.clone_dir)
+
+    def tearDown(self):
+        super(MercurialSubversionClientTests, self).tearDown()
+
+        os.kill(self._svnserve_pid, 9)
 
     def _has_hgsubversion(self):
         try:
@@ -503,11 +497,6 @@ class MercurialSubversionClientTests(MercurialTestBase):
             return False
 
         return not re.search("unknown command ['\"]svn['\"]", output, re.I)
-
-    def tearDown(self):
-        super(MercurialSubversionClientTests, self).tearDown()
-
-        os.kill(self._svnserve_pid, 9)
 
     def _svn_add_file_commit(self, filename, data, msg, add_file=True):
         outfile = open(filename, 'w')
@@ -519,21 +508,14 @@ class MercurialSubversionClientTests(MercurialTestBase):
 
         execute(['svn', 'commit', '-m', msg])
 
-    def _create_svn_repo(self):
-        self.svn_repo = os.path.join(self._tmpbase, 'svnrepo')
-        execute(['svnadmin', 'create', self.svn_repo])
-
     def _fire_up_svnserve(self):
-        if not self._svnserve_port:
-            self._svnserve_port = str(randint(30000, 40000))
-
-        pid_file = os.path.join(self._tmpbase, 'svnserve.pid')
-        execute(['svnserve', '--single-thread', '--pid-file', pid_file, '-d',
-                 '--listen-port', self._svnserve_port, '-r', self._tmpbase])
+        execute(['svnserve', '--single-thread', '--pid-file', self.pid_file, '-d',
+                 '--listen-port', str(self._svnserve_port),
+                 '-r', self.base_dir])
 
         for i in range(0, self._max_svnserve_pid_tries):
             try:
-                self._svnserve_pid = int(open(pid_file).read().strip())
+                self._svnserve_pid = int(open(self.pid_file).read().strip())
                 return
 
             except (IOError, OSError):
@@ -544,8 +526,7 @@ class MercurialSubversionClientTests(MercurialTestBase):
         raise
 
     def _fill_in_svn_repo(self):
-        self.svn_checkout = os.path.join(self._tmpbase, 'checkout.svn')
-        execute(['svn', 'checkout', 'file://%s' % self.svn_repo,
+        execute(['svn', 'checkout', 'file://%s' % self.repo,
                  self.svn_checkout])
         os.chdir(self.svn_checkout)
 
@@ -559,28 +540,13 @@ class MercurialSubversionClientTests(MercurialTestBase):
             self._svn_add_file_commit('foo.txt', data, 'foo commit %s' % i,
                                       add_file=(i == 0))
 
-    def _get_testing_clone(self):
-        self.clone_dir = os.path.join(self._tmpbase, 'checkout.hg')
-        self._run_hg([
-            'clone', 'svn://127.0.0.1:%s/svnrepo' % self._svnserve_port,
-            self.clone_dir,
-        ])
-
-    def _spin_up_client(self):
-        os.chdir(self.clone_dir)
-        self.client = MercurialClient(options=self.options)
-
-    def _stub_in_config_and_options(self):
-        self.options.parent_branch = None
-
     def testGetRepositoryInfoSimple(self):
         """Testing MercurialClient (+svn) get_repository_info, simple case"""
         ri = self.client.get_repository_info()
 
         self.assertEqual('svn', self.client._type)
         self.assertEqual('/trunk', ri.base_path)
-        self.assertEqual('svn://127.0.0.1:%s/svnrepo' % self._svnserve_port,
-                         ri.path)
+        self.assertEqual(self.repo, ri.path)
 
     def testCalculateRepositoryInfo(self):
         """Testing MercurialClient (+svn)
@@ -611,9 +577,8 @@ class MercurialSubversionClientTests(MercurialTestBase):
     def testScanForServerReviewboardrc(self):
         """Testing MercurialClient (+svn) scan_for_server in .reviewboardrc"""
         rc_filename = os.path.join(self.clone_dir, '.reviewboardrc')
-        rc = open(rc_filename, 'w')
-        rc.write('REVIEWBOARD_URL = "%s"' % self.TESTSERVER)
-        rc.close()
+        with open(rc_filename, 'w') as rc:
+            rc.write('REVIEWBOARD_URL = "%s"' % self.TESTSERVER)
         self.client.config = load_config()
 
         ri = self.client.get_repository_info()
