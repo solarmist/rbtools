@@ -23,10 +23,7 @@ from rbtools.utils.filesystem import (cleanup_tempfiles, get_home_path,
                                       is_exe_in_path, load_config)
 from rbtools.utils.process import log_command_line
 
-
-# NOTE: This needs to be a byte string, since it's going to go in argv,
-#       which are all expected to be byte strings.
-RB_MAIN = b'rbt'
+RB_MAIN = 'rbt'
 
 
 class CommandExit(Exception):
