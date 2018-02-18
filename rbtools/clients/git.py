@@ -248,8 +248,9 @@ class GitClient(SCMClient):
 
             # Top level might not work on old git version se we use git dir
             # to find it.
-            if (git_top.startswith('fatal:') or not os.path.isdir(git_dir)
-                or git_top.startswith('cygdrive')):
+            if (git_top.startswith('fatal:') or
+                not os.path.isdir(git_dir) or
+                git_top.startswith('cygdrive')):
                 git_top = git_dir
 
             os.chdir(os.path.abspath(git_top))
@@ -265,7 +266,8 @@ class GitClient(SCMClient):
         git_svn_dir = os.path.join(git_dir, 'svn')
 
         if (not getattr(self.options, 'repository_url', None) and
-            os.path.isdir(git_svn_dir) and len(os.listdir(git_svn_dir)) > 0):
+            os.path.isdir(git_svn_dir) and
+            len(os.listdir(git_svn_dir)) > 0):
             data = execute([self.git, "svn", "info"], ignore_errors=True)
 
             m = re.search(r'^Repository Root: (.+)$', data, re.M)

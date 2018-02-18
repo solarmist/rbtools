@@ -124,7 +124,7 @@ class BazaarClientTests(SCMClientTests):
                             'a6326b53933f8b255a4b840485d8e210')
 
     def test_diff_exclude(self):
-        """Testing BazaarClient diff with file exclusion."""
+        """Testing BazaarClient diff with file exclusion"""
         os.chdir(self.child_branch)
 
         self._bzr_add_file_commit("foo.txt", FOO1, "commit 1")
@@ -141,7 +141,7 @@ class BazaarClientTests(SCMClientTests):
         self.assertEqual(self._count_files_in_diff(result['diff']), 1)
 
     def test_diff_exclude_in_subdir(self):
-        """Testing BazaarClient diff with file exclusion in a subdirectory."""
+        """Testing BazaarClient diff with file exclusion in a subdirectory"""
         os.chdir(self.child_branch)
 
         self._bzr_add_file_commit('foo.txt', FOO1, 'commit 1')
@@ -163,7 +163,7 @@ class BazaarClientTests(SCMClientTests):
         self.assertEqual(self._count_files_in_diff(result['diff']), 1)
 
     def test_diff_exclude_root_pattern_in_subdir(self):
-        """Testing BazaarClient diff with file exclusion in the repo root."""
+        """Testing BazaarClient diff with file exclusion in the repo root"""
         os.chdir(self.child_branch)
 
         self._bzr_add_file_commit('exclude.txt', FOO2, 'commit 1')
@@ -279,7 +279,7 @@ class BazaarClientTests(SCMClientTests):
 
     def test_guessed_summary_and_description_in_grand_parent_branch(self):
         """Testing BazaarClient guessing summary and description for grand
-        parent branch."""
+        parent branch"""
         os.chdir(self.child_branch)
 
         self._bzr_add_file_commit("foo.txt", FOO1, "commit 1")
@@ -310,7 +310,7 @@ class BazaarClientTests(SCMClientTests):
 
     def test_guessed_summary_and_description_with_revision_range(self):
         """Testing BazaarClient guessing summary and description with a
-        revision range."""
+        revision range"""
         os.chdir(self.child_branch)
 
         self._bzr_add_file_commit("foo.txt", FOO1, "commit 1")
