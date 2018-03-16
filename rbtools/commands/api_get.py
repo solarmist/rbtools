@@ -17,7 +17,7 @@ class APIGet(Command):
     description = 'Retrieve raw API resource payloads.'
     args = '<path> [--<query-arg>=<value> ...]'
     option_list = [
-        Option('--pretty',
+        Option('-pp', '--pretty',
                action='store_true',
                dest='pretty_print',
                config_key='API_GET_PRETTY_PRINT',
